@@ -1,18 +1,43 @@
+#---------- Forematters---------------------------------------------
+from scipy.interpolate import griddata
+import numpy as np
+#-------------------------------------------------------------------
+
 def stitch(x1, y1, u1, v1, x2, y2, u2, v2, blend):
+    '''
+    Stitch two vector fields with overlapping regions.
+
+    Inputs:
+    x1, y1 - coordinates of the first fields in meshgrid form
+    u1, v1 - scaler values of the first field
+    x2, y2 - coordinates of the second fields in meshgrid form
+    u2, v2 - scaler values of the second field
+    blend - stitching method in the overlapping region: 'none','average', 'cubic' or 'cosine'
+
+    Outputs:
+    x, y - coordinates of the stitched field in meshgrid form
+    u, v - scaler values of the stitched field
+
+    Notes:
+    - PIV mask region must takes the value of zeros
+
+    Disclaimer:
+    This Py-code is translated from the Matlab-code shared on FMRL SharePoint, written by J. McClure
+    '''
     # -------- Create 2D field for stitched image ------------------
     dx = np.max((np.abs(x1[0,0]-x1[0,1]), np.abs(x2[0,0]-x2[0,1])));
     dy = np.max((np.abs(y1[0,0]-y1[1,0]), np.abs(y2[0,0]-y2[1,0])));
 
     xmin = np.min((x1.min(), x2.min()))
     xmax = np.max((x1.max(), x2.max()))
-    xmax = xmax - dx*((xmax-xmin)/dx-np.floor((xmax-xmin)/dx))
+    xmax = xmax + dx*((xmax-xmin)/dx-np.floor((xmax-xmin)/dx))
 
     ymin = np.min((y1.min(), y2.min()))
     ymax = np.max((y1.max(), y2.max()))
-    ymax = ymax - dy*((ymax-ymin)/dy-np.floor((ymax-ymin)/dy))
+    ymax = ymax + dy*((ymax-ymin)/dy-np.floor((ymax-ymin)/dy))
 
     [x, y] = np.meshgrid(np.linspace(xmin,xmax, num = np.int(np.round(np.abs(xmax-xmin)/dx+1))),\
-                          np.linspace(xmin,xmax, num = np.int(np.round(np.abs(xmax-xmin)/dx+1))) )
+                         np.linspace(ymin,ymax, num = np.int(np.round(np.abs(xmax-xmin)/dx+1))) )
     # -------- Region of overlap -----------------------------------
     # Right boundary
     Ab = x[0,:]-np.min((x1.max(), x2.max()))
@@ -30,6 +55,7 @@ def stitch(x1, y1, u1, v1, x2, y2, u2, v2, blend):
     Ae = y[:,0]-np.min((y1.max(), y2.max()))
     Ae[Ae<0] = 10e8
     yov2 = np.argmin(np.abs(Ae))
+
 
     #-------- Interpolated region in both FOV -----------------------
     x11 = np.argmin( np.abs( x[0,:]-x1.min() ) )
@@ -75,7 +101,7 @@ def stitch(x1, y1, u1, v1, x2, y2, u2, v2, blend):
     #------- Select blending function for overlapping region ------------------
     ## Generate weighting functions
 
-    blend = 'cosine'
+
     # No blending
     if blend == 'none':
         wgt1b = np.ones((1, np.abs(xov2-xov1)))
@@ -100,6 +126,7 @@ def stitch(x1, y1, u1, v1, x2, y2, u2, v2, blend):
 
     wgt1 = np.matlib.repmat(wgt1b, (np.abs(yov2-yov1)), 1)
     wgt2 = np.matlib.repmat(wgt2b, (np.abs(yov2-yov1)), 1)
+
 
     # Blending
     uov1c = uov1*wgt2
